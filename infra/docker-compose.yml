@@ -1,0 +1,256 @@
+# Production stack for one VPS. Run from this directory:
+#   docker compose -p syria-tech-ecommerce up -d
+# Dev (published localhost ports + local builds):
+#   docker compose -p syria-tech-ecommerce -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Only caddy publishes ports. Postgres, Redis and MinIO stay on the compose network.
+# Images are built in CI and pulled from GHCR (never built on the VPS).
+name: syria-tech-ecommerce
+
+x-medusa-env: &medusa-env
+  NODE_ENV: production
+  MEDUSA_DISABLE_TELEMETRY: "true"
+  PORT: "9000"
+  # sslmode=disable (not ssl_mode=): Medusa 2.21 forces SSL for non-localhost hosts otherwise
+  DATABASE_URL: postgres://medusa:${MEDUSA_DB_PASSWORD}@postgres:5432/medusa?sslmode=disable
+  REDIS_URL: redis://redis:6379
+  JWT_SECRET: ${MEDUSA_JWT_SECRET}
+  COOKIE_SECRET: ${MEDUSA_COOKIE_SECRET}
+  STORE_CORS: ${MEDUSA_STORE_CORS}
+  ADMIN_CORS: ${MEDUSA_ADMIN_CORS}
+  AUTH_CORS: ${MEDUSA_AUTH_CORS}
+  STOREFRONT_URL: ${STOREFRONT_PUBLIC_URL}
+  MEDUSA_FF_TRANSLATION: "true"
+  # Analytics Module -> PostHog (docs/analytics.md). Empty provider = posthog when the key is
+  # set, local (log-only) otherwise. Subscribers run in the worker; the server only emits.
+  ANALYTICS_PROVIDER: ${ANALYTICS_PROVIDER:-}
+  POSTHOG_EVENTS_KEY: ${POSTHOG_EVENTS_KEY:-}
+  POSTHOG_HOST: ${POSTHOG_HOST:-https://eu.i.posthog.com}
+  LOG_LEVEL: ${LOG_LEVEL:-http}
+  # Files -> MinIO (S3 provider, path-style)
+  S3_FILE_URL: ${MINIO_PUBLIC_URL}/${MEDUSA_S3_BUCKET}
+  S3_ENDPOINT: http://minio:9000
+  S3_BUCKET: ${MEDUSA_S3_BUCKET}
+  S3_REGION: us-east-1
+  S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+  S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+
+services:
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    # Prod: CADDY_HTTP_BIND=80, CADDY_HTTPS_BIND=443. Dev: 127.0.0.1:8080 / 127.0.0.1:8443
+    ports:
+      - "${CADDY_HTTP_BIND:-80}:80"
+      - "${CADDY_HTTPS_BIND:-443}:443"
+      - "${CADDY_HTTPS_BIND:-443}:443/udp"
+    environment:
+      STORE_DOMAIN: ${STORE_DOMAIN}
+      CMS_DOMAIN: ${CMS_DOMAIN}
+      MEDIA_DOMAIN: ${MEDIA_DOMAIN}
+      ACME_EMAIL: ${ACME_EMAIL}
+      # Written by bootstrap.sh; Caddy adds it to keyless /store/* requests (see Caddyfile).
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY:-}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      medusa-server:
+        condition: service_healthy
+      strapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/metrics"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+
+  storefront:
+    image: ghcr.io/${GHCR_OWNER}/syria-tech-ecommerce-storefront:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      # Server-side URL (compose network). The browser uses its own origin: Caddy serves
+      # /store on the storefront domain and injects the publishable key.
+      # NEXT_PUBLIC_* values are inlined into the image at build time (Next.js does this for
+      # server code too), so everything environment-specific is passed under plain names the
+      # Next.js server reads at runtime.
+      MEDUSA_BACKEND_URL: http://medusa-server:9000
+      MEDUSA_PUBLISHABLE_KEY: ${MEDUSA_PUBLISHABLE_KEY}
+      BASE_URL: ${STOREFRONT_PUBLIC_URL}
+      STRAPI_URL: http://strapi:1337
+      STRAPI_READ_TOKEN: ${STRAPI_READ_TOKEN:-}
+      STRAPI_MEDIA_URL: ${STRAPI_PUBLIC_URL}
+      # PostHog browser SDK (docs/analytics.md): same project key as the backend; the
+      # storefront hands it to the browser at request time. Empty = analytics off.
+      POSTHOG_KEY: ${POSTHOG_EVENTS_KEY:-}
+      POSTHOG_UI_HOST: ${POSTHOG_UI_HOST:-https://eu.posthog.com}
+      ANALYTICS_DISABLED: ${ANALYTICS_DISABLED:-}
+    depends_on:
+      medusa-server:
+        condition: service_healthy
+      strapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+
+  medusa-server:
+    image: ghcr.io/${GHCR_OWNER}/syria-tech-ecommerce-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: server
+      DISABLE_MEDUSA_ADMIN: "false"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 18
+      start_period: 120s   # includes db:migrate on first boot
+
+  medusa-worker:
+    image: ghcr.io/${GHCR_OWNER}/syria-tech-ecommerce-backend:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      <<: *medusa-env
+      MEDUSA_WORKER_MODE: worker
+      DISABLE_MEDUSA_ADMIN: "true"
+    depends_on:
+      medusa-server:
+        condition: service_healthy   # the server owns migrations
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:9000/health"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+
+  strapi:
+    image: ghcr.io/${GHCR_OWNER}/syria-tech-ecommerce-cms:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "1337"
+      PUBLIC_URL: ${STRAPI_PUBLIC_URL}
+      IS_PROXIED: "true"
+      APP_KEYS: ${STRAPI_APP_KEYS}
+      API_TOKEN_SALT: ${STRAPI_API_TOKEN_SALT}
+      ADMIN_JWT_SECRET: ${STRAPI_ADMIN_JWT_SECRET}
+      TRANSFER_TOKEN_SALT: ${STRAPI_TRANSFER_TOKEN_SALT}
+      JWT_SECRET: ${STRAPI_JWT_SECRET}
+      ENCRYPTION_KEY: ${STRAPI_ENCRYPTION_KEY}
+      DATABASE_CLIENT: postgres
+      DATABASE_HOST: postgres
+      DATABASE_PORT: "5432"
+      DATABASE_NAME: strapi
+      DATABASE_USERNAME: strapi
+      DATABASE_PASSWORD: ${STRAPI_DB_PASSWORD}
+      DATABASE_SSL: "false"
+      # Uploads -> MinIO
+      S3_BUCKET: ${STRAPI_S3_BUCKET}
+      S3_ENDPOINT: http://minio:9000
+      S3_PUBLIC_BASE_URL: ${MINIO_PUBLIC_URL}/${STRAPI_S3_BUCKET}
+      S3_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      S3_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_REGION: us-east-1
+      CSP_MEDIA_HOSTS: ${MEDIA_DOMAIN}
+      CORS_ORIGINS: ${STRAPI_PUBLIC_URL}
+      STRAPI_PUBLIC_READ: "true"
+      STRAPI_TELEMETRY_DISABLED: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      minio-init:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:1337/_health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 60s
+
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_SUPERUSER_PASSWORD}
+      POSTGRES_DB: postgres
+      MEDUSA_DB_PASSWORD: ${MEDUSA_DB_PASSWORD}
+      STRAPI_DB_PASSWORD: ${STRAPI_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./docker/postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d medusa && pg_isready -U postgres -d strapi"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      MINIO_BROWSER_REDIRECT_URL: ${MINIO_CONSOLE_URL:-http://localhost:9001}
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  # One-shot: creates the two buckets and makes them public-read. Idempotent.
+  minio-init:
+    image: minio/mc:latest
+    restart: "no"
+    entrypoint: ["/bin/sh", "/scripts/create-buckets.sh"]
+    environment:
+      MINIO_ENDPOINT: http://minio:9000
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      BUCKETS: ${MEDUSA_S3_BUCKET} ${STRAPI_S3_BUCKET}
+    volumes:
+      - ./docker/minio-init:/scripts:ro
+    depends_on:
+      minio:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:
+  miniodata:
+  caddy_data:
+  caddy_config:

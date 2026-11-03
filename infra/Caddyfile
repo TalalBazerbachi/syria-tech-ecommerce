@@ -1,0 +1,100 @@
+# Production reverse proxy. Domains come from infra/.env (STORE_DOMAIN, CMS_DOMAIN, MEDIA_DOMAIN).
+# TLS via Let's Encrypt (HTTP-01). Cloudflare in front must be in "Full (strict)" mode and
+# must NOT proxy port 2019 (Caddy admin stays internal).
+{
+	email {$ACME_EMAIL}
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
+# Store: Medusa API + admin on the same origin, everything else to the storefront.
+{$STORE_DOMAIN} {
+	encode zstd gzip
+
+	# Browser calls to the Store API arrive without a publishable key: the storefront image is
+	# built in CI before the key exists (bootstrap creates it on the server). Caddy adds it here,
+	# so nothing is baked into the image. The key is public by design; the Next.js server reads
+	# it from its own environment and sends it itself. Caddy must be recreated after the key
+	# changes (bootstrap.sh does this).
+	@storeNoKey {
+		path /store/*
+		not header x-publishable-api-key *
+	}
+	handle @storeNoKey {
+		reverse_proxy medusa-server:9000 {
+			header_up x-publishable-api-key {$MEDUSA_PUBLISHABLE_KEY}
+		}
+	}
+
+	@medusa path /app /app/* /admin/* /store/* /auth/* /health /webhooks/* /hooks/* /key-exchange*
+	handle @medusa {
+		reverse_proxy medusa-server:9000
+	}
+
+	# PostHog browser SDK through our own domain (docs/analytics.md; directives from
+	# posthog.com/docs/advanced/proxy/caddy, subpath variant). handle_path strips /ingest;
+	# /static/* and /array/* (SDK bundle, remote config) go to the assets host, the rest is
+	# event ingestion. Host must be the PostHog upstream or it answers 401. Always on: it is
+	# inert until the storefront initialises posthog-js with api_host = /ingest.
+	handle_path /ingest/static/* {
+		rewrite * /static{uri}
+		reverse_proxy https://eu-assets.i.posthog.com:443 {
+			header_up Host eu-assets.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+	handle_path /ingest/array/* {
+		rewrite * /array{uri}
+		reverse_proxy https://eu-assets.i.posthog.com:443 {
+			header_up Host eu-assets.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+	handle_path /ingest/* {
+		reverse_proxy https://eu.i.posthog.com:443 {
+			header_up Host eu.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+
+	handle {
+		reverse_proxy storefront:3000
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+	log {
+		output stdout
+		format json
+	}
+}
+
+# CMS admin + REST API.
+{$CMS_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy strapi:1337
+	header -Server
+}
+
+# Public media: read-only pass-through to MinIO (buckets are anonymous-download).
+{$MEDIA_DOMAIN} {
+	@notRead not method GET HEAD
+	respond @notRead 405
+
+	header {
+		Cache-Control "public, max-age=31536000, immutable"
+		Access-Control-Allow-Origin "*"
+		-Server
+	}
+	reverse_proxy minio:9000
+}

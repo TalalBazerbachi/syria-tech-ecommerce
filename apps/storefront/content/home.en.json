@@ -1,0 +1,10 @@
+{
+  "hero": {
+    "heading": "Tech for home and office, delivered to your door",
+    "text": "Genuine laptops, accessories and networking gear. Courier delivery in Damascus and Rif Dimashq, cash on delivery.",
+    "image": "/images/hero.svg",
+    "imageAlt": "A laptop, a mouse and a Wi-Fi router on a desk",
+    "ctaLabel": "Shop now",
+    "ctaHref": "/store"
+  }
+}

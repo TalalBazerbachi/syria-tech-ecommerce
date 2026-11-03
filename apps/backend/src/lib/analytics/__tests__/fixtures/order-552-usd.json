@@ -1,0 +1,72 @@
+{
+  "id": "order_01M5D567BRXZWX5NJ8T2CCNE0X",
+  "display_id": 3,
+  "status": "pending",
+  "email": "test-order@example.com",
+  "customer_id": "cus_01M5D54WBX1WBV2ZX14S42QMT4",
+  "currency_code": "usd",
+  "locale": "ar-SA",
+  "metadata": {
+    "posthog_distinct_id": "0199f0a1-browser-id",
+    "attribution": {
+      "creator": "sara",
+      "creator_source": "link",
+      "utm_source": "instagram",
+      "utm_medium": "social",
+      "utm_campaign": "launch",
+      "gclid": null,
+      "fbclid": "IwAR0abc",
+      "landing_path": "/ar/l/laptops",
+      "referrer": "https://l.instagram.com/"
+    }
+  },
+  "created_at": "2026-10-20T17:19:18.909Z",
+  "canceled_at": null,
+  "total": 552,
+  "subtotal": 552,
+  "item_subtotal": 549,
+  "shipping_total": 3,
+  "discount_total": 0,
+  "tax_total": 0,
+  "items": [
+    {
+      "id": "ordli_01",
+      "product_id": "prod_01",
+      "variant_id": "variant_01",
+      "variant_sku": "LAP-IDEA3-15",
+      "title": "Lenovo IdeaPad Slim 3",
+      "product_title": "Lenovo IdeaPad Slim 3",
+      "variant_title": "8 GB / 512 GB",
+      "quantity": 1,
+      "unit_price": 549
+    }
+  ],
+  "shipping_address": {
+    "first_name": "اختبار",
+    "last_name": "المشتري",
+    "phone": "+963944123456",
+    "province": "sy-di",
+    "city": "Damascus",
+    "country_code": "sy"
+  },
+  "customer": {
+    "id": "cus_01M5D54WBX1WBV2ZX14S42QMT4",
+    "email": "test-order@example.com",
+    "phone": null,
+    "first_name": null,
+    "last_name": null
+  },
+  "payment_collections": [
+    {
+      "id": "pay_col_01M5D55XKXAFNYN5XEYT2K1BNB",
+      "payments": [{ "id": "pay_01M5D567G5Z9B1WJ2G031Q4DGE", "provider_id": "pp_system_default" }],
+      "payment_sessions": [{ "id": "payses_01", "provider_id": "pp_system_default" }]
+    }
+  ],
+  "promotions": [],
+  "fulfillments": [],
+  "cart": {
+    "id": "cart_01M5D542EM345AVHTH39YXCTET",
+    "metadata": { "posthog_distinct_id": "cart-browser-id" }
+  }
+}

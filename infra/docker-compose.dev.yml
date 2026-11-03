@@ -1,0 +1,63 @@
+# Development override: local image builds + localhost-only published ports.
+#   docker compose -p syria-tech-ecommerce -f docker-compose.yml -f docker-compose.dev.yml up -d --build
+#
+# Ports (all bound to 127.0.0.1; override any of them with DEV_*_PORT in .env when a port is taken):
+#   8080  caddy      -> store (CADDY_HTTP_BIND=127.0.0.1:8080 in .env) (http://localhost:8080, http://cms.localhost:8080, http://media.localhost:8080)
+#   8000  storefront
+#   9000  medusa-server (admin at /app)
+#   1337  strapi
+#   9001  minio console
+#   9002  minio S3 API (this is what MINIO_PUBLIC_URL=http://localhost:9002 points at)
+#   5432  postgres
+#   6379  redis
+services:
+  caddy:
+    # ports come from CADDY_HTTP_BIND / CADDY_HTTPS_BIND in .env (compose < 2.24 has no !override)
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+  storefront:
+    build:
+      context: ../apps/storefront
+    # Direct access for debugging; the normal dev entry is Caddy on http://localhost:8080.
+    # 8001 because 8000 is commonly taken by other local servers.
+    ports:
+      - "127.0.0.1:${DEV_STOREFRONT_PORT:-8001}:3000"
+    environment:
+      BASE_URL: http://localhost:8080
+      STRAPI_MEDIA_URL: http://localhost:1337
+
+  medusa-server:
+    build:
+      context: ../apps/backend
+    ports:
+      - "127.0.0.1:${DEV_MEDUSA_PORT:-9000}:9000"
+    environment:
+      # Plain HTTP locally: let the admin session cookie be set without the
+      # Secure flag. Dev only; production keeps the Secure cookie behind Caddy TLS.
+      COOKIE_SECURE: "false"
+
+  medusa-worker:
+    build:
+      context: ../apps/backend
+
+  strapi:
+    build:
+      context: ../apps/cms
+    ports:
+      - "127.0.0.1:${DEV_STRAPI_PORT:-1337}:1337"
+
+  postgres:
+    ports:
+      - "127.0.0.1:${DEV_POSTGRES_PORT:-5432}:5432"
+
+  redis:
+    ports:
+      - "127.0.0.1:${DEV_REDIS_PORT:-6379}:6379"
+
+  minio:
+    ports:
+      - "127.0.0.1:${DEV_MINIO_CONSOLE_PORT:-9001}:9001"
+      - "127.0.0.1:${DEV_MINIO_API_PORT:-9002}:9000"

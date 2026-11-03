@@ -1,0 +1,78 @@
+# Deploys already-built images to a server over SSH:
+#   cd $DEPLOY_PATH/infra && git pull && docker compose pull && docker compose up -d && docker compose ps
+#
+# Manual: Actions -> deploy -> Run workflow -> pick environment (+ optional image tag).
+# Automatic: a successful `build` on main deploys `latest` to staging.
+#
+# Per-environment GitHub secrets (Settings -> Environments -> staging / production):
+#   DEPLOY_HOST      server IP or hostname
+#   DEPLOY_USER      ssh user that can run docker (member of the docker group)
+#   DEPLOY_SSH_KEY   private key (ed25519) whose public half is in that user's authorized_keys
+#   DEPLOY_PATH      checkout path on the server, e.g. /opt/syria-tech-ecommerce
+#   DEPLOY_PORT      (optional) ssh port, default 22
+# The server reads everything else from $DEPLOY_PATH/infra/.env (see docs/runbook.md). If the
+# GHCR packages are private, `docker login ghcr.io` once on the server with a read-only PAT.
+name: deploy
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        default: staging
+        type: choice
+        options: [staging, production]
+      image_tag:
+        description: Image tag to deploy (commit sha or latest). Empty keeps IMAGE_TAG from the server's .env
+        required: false
+        default: ""
+        type: string
+  workflow_run:
+    workflows: [build]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment || 'staging' }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    # on workflow_run, only deploy when the build succeeded
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment || 'staging' }}
+    env:
+      TARGET: ${{ inputs.environment || 'staging' }}
+      IMAGE_TAG: ${{ inputs.image_tag || '' }}
+      DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT || 22 }}
+    steps:
+      - name: Prepare SSH
+        run: |
+          mkdir -p ~/.ssh && chmod 700 ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "$DEPLOY_PORT" -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Pull and restart (${{ env.TARGET }})
+        run: |
+          ssh -i ~/.ssh/deploy_key -p "$DEPLOY_PORT" \
+              "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+              "IMAGE_TAG='${IMAGE_TAG}' DEPLOY_PATH='${DEPLOY_PATH}' bash -s" <<'REMOTE'
+            set -euo pipefail
+            cd "${DEPLOY_PATH}/infra"
+            git pull --ff-only
+            if [ -n "${IMAGE_TAG:-}" ]; then
+              # pin this deploy to one image tag; kept in .env so a later plain `up -d` reuses it
+              if grep -q '^IMAGE_TAG=' .env; then sed -i "s#^IMAGE_TAG=.*#IMAGE_TAG=${IMAGE_TAG}#" .env; else echo "IMAGE_TAG=${IMAGE_TAG}" >> .env; fi
+            fi
+            docker compose -p syria-tech-ecommerce pull
+            docker compose -p syria-tech-ecommerce up -d --remove-orphans
+            docker compose -p syria-tech-ecommerce ps
+            docker image prune -f >/dev/null
+          REMOTE

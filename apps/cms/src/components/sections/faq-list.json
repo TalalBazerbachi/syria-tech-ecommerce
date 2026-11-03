@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_sections_faq_lists",
+  "info": {
+    "displayName": "FAQ list",
+    "description": "A list of FAQ items rendered as an accordion; the storefront also emits FAQPage JSON-LD from it."
+  },
+  "options": {},
+  "attributes": {
+    "heading": {
+      "type": "string"
+    },
+    "items": {
+      "type": "component",
+      "repeatable": true,
+      "component": "shared.faq-item",
+      "required": true
+    }
+  }
+}

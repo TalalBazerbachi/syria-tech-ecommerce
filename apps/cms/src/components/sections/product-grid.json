@@ -1,0 +1,19 @@
+{
+  "collectionName": "components_sections_product_grids",
+  "info": {
+    "displayName": "Product grid",
+    "description": "A grid of Medusa products: either every product of a Medusa collection (collectionHandle) or an explicit list of Medusa product handles (productHandles, JSON array of strings). Handles are typed by hand; nothing is synced."
+  },
+  "options": {},
+  "attributes": {
+    "heading": {
+      "type": "string"
+    },
+    "collectionHandle": {
+      "type": "string"
+    },
+    "productHandles": {
+      "type": "json"
+    }
+  }
+}

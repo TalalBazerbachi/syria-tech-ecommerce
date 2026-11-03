@@ -1,0 +1,56 @@
+{
+  "kind": "collectionType",
+  "collectionName": "landing_pages",
+  "info": {
+    "singularName": "landing-page",
+    "pluralName": "landing-pages",
+    "displayName": "Landing page",
+    "description": "SEO landing page rendered by the storefront at /[locale]/l/[slug]: a hero plus a dynamic zone of sections. Product references are Medusa handles typed by hand."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "title": {
+      "type": "string",
+      "required": true,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "slug": {
+      "type": "uid",
+      "targetField": "title",
+      "required": true,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "seoTitle": {
+      "type": "string",
+      "maxLength": 70,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "seoDescription": {
+      "type": "text",
+      "maxLength": 160,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "noindex": {
+      "type": "boolean",
+      "default": false,
+      "required": true,
+      "pluginOptions": { "i18n": { "localized": false } }
+    },
+    "hero": {
+      "type": "component",
+      "repeatable": false,
+      "component": "sections.hero",
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "sections": {
+      "type": "dynamiczone",
+      "components": ["sections.richtext", "sections.product-grid", "sections.faq-list"],
+      "pluginOptions": { "i18n": { "localized": true } }
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "collectionName": "components_sections_richtexts",
+  "info": {
+    "displayName": "Rich text",
+    "description": "A block of markdown. The storefront renders it sanitized."
+  },
+  "options": {},
+  "attributes": {
+    "body": {
+      "type": "richtext",
+      "required": true
+    }
+  }
+}

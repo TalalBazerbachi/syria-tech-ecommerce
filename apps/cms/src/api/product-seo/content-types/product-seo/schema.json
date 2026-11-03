@@ -1,0 +1,45 @@
+{
+  "kind": "collectionType",
+  "collectionName": "product_seos",
+  "info": {
+    "singularName": "product-seo",
+    "pluralName": "product-seos",
+    "displayName": "Product SEO",
+    "description": "Optional SEO text for one Medusa product, keyed by its handle (typed by hand, never synced). The storefront renders longDescription below the Medusa description and faq after it."
+  },
+  "options": {
+    "draftAndPublish": true
+  },
+  "pluginOptions": {
+    "i18n": { "localized": true }
+  },
+  "attributes": {
+    "productHandle": {
+      "type": "string",
+      "required": true,
+      "unique": true,
+      "regex": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+      "pluginOptions": { "i18n": { "localized": false } }
+    },
+    "longDescription": {
+      "type": "richtext",
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "seoTitle": {
+      "type": "string",
+      "maxLength": 70,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "seoDescription": {
+      "type": "text",
+      "maxLength": 160,
+      "pluginOptions": { "i18n": { "localized": true } }
+    },
+    "faq": {
+      "type": "component",
+      "repeatable": true,
+      "component": "shared.faq-item",
+      "pluginOptions": { "i18n": { "localized": true } }
+    }
+  }
+}

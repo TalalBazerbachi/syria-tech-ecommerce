@@ -1,0 +1,62 @@
+# Development: plain HTTP on :80 (published as 127.0.0.1:8080 by docker-compose.dev.yml).
+# Browsers resolve *.localhost to loopback, so http://cms.localhost:8080 works without DNS.
+{
+	auto_https off
+}
+
+http://localhost, http://store.localhost {
+	# Same key injection as production (see Caddyfile).
+	@storeNoKey {
+		path /store/*
+		not header x-publishable-api-key *
+	}
+	handle @storeNoKey {
+		reverse_proxy medusa-server:9000 {
+			header_up x-publishable-api-key {$MEDUSA_PUBLISHABLE_KEY}
+		}
+	}
+	@medusa path /app /app/* /admin/* /store/* /auth/* /health /webhooks/* /hooks/* /key-exchange*
+	handle @medusa {
+		reverse_proxy medusa-server:9000
+	}
+	# PostHog browser SDK proxy, same as production (see Caddyfile).
+	handle_path /ingest/static/* {
+		rewrite * /static{uri}
+		reverse_proxy https://eu-assets.i.posthog.com:443 {
+			header_up Host eu-assets.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+	handle_path /ingest/array/* {
+		rewrite * /array{uri}
+		reverse_proxy https://eu-assets.i.posthog.com:443 {
+			header_up Host eu-assets.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+	handle_path /ingest/* {
+		reverse_proxy https://eu.i.posthog.com:443 {
+			header_up Host eu.i.posthog.com
+			header_up -Cookie
+			header_up -Authorization
+			header_down -Access-Control-Allow-Origin
+		}
+	}
+	handle {
+		reverse_proxy storefront:3000
+	}
+}
+
+http://cms.localhost {
+	reverse_proxy strapi:1337
+}
+
+http://media.localhost {
+	@notRead not method GET HEAD
+	respond @notRead 405
+	reverse_proxy minio:9000
+}
