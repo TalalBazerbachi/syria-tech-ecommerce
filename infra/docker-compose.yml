@@ -27,6 +27,11 @@ x-medusa-env: &medusa-env
   POSTHOG_EVENTS_KEY: ${POSTHOG_EVENTS_KEY:-}
   POSTHOG_HOST: ${POSTHOG_HOST:-https://eu.i.posthog.com}
   LOG_LEVEL: ${LOG_LEVEL:-http}
+  # New-order alerts to a staff Telegram chat (src/subscribers/order-alert-placed.ts, worker).
+  # Both empty = off. The admin link in each alert points at the public admin.
+  ORDER_ALERT_TELEGRAM_BOT_TOKEN: ${ORDER_ALERT_TELEGRAM_BOT_TOKEN:-}
+  ORDER_ALERT_TELEGRAM_CHAT_ID: ${ORDER_ALERT_TELEGRAM_CHAT_ID:-}
+  MEDUSA_ADMIN_PUBLIC_URL: ${MEDUSA_BACKEND_URL}/app
   # Files -> MinIO (S3 provider, path-style)
   S3_FILE_URL: ${MINIO_PUBLIC_URL}/${MEDUSA_S3_BUCKET}
   S3_ENDPOINT: http://minio:9000
@@ -90,6 +95,9 @@ services:
       POSTHOG_KEY: ${POSTHOG_EVENTS_KEY:-}
       POSTHOG_UI_HOST: ${POSTHOG_UI_HOST:-https://eu.posthog.com}
       ANALYTICS_DISABLED: ${ANALYTICS_DISABLED:-}
+      # The store's numbers in the footer and on checkout (src/lib/util/contact.ts). Empty = hidden.
+      STORE_WHATSAPP: ${STORE_WHATSAPP:-}
+      STORE_PHONE: ${STORE_PHONE:-}
     depends_on:
       medusa-server:
         condition: service_healthy

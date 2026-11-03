@@ -22,7 +22,9 @@
     "poweredBy": "Powered by",
     "guides": "Guides",
     "faq": "Frequently asked questions",
-    "information": "Information"
+    "information": "Information",
+    "whatsapp": "WhatsApp",
+    "phone": "Phone"
   },
   "home": {
     "metaTitle": "Syria Tech — laptops, accessories and networking gear",
@@ -187,6 +189,7 @@
     "notes": "Delivery notes (optional)",
     "notesShort": "Notes",
     "email": "Email",
+    "emailOptional": "Email (optional)",
     "emailHint": "Enter a valid email address.",
     "useSavedAddress": "Hi {name}, do you want to use one of your saved addresses?",
     "chooseAddress": "Choose an address",
@@ -269,7 +272,7 @@
     "summary": "Summary",
     "orderDetails": "Order details",
     "backToOverview": "Back to orders",
-    "confirmationSentTo": "We have sent the order confirmation to <strong>{email}</strong>.",
+    "confirmationCall": "We will call you on <strong>{phone}</strong> to confirm your order before delivery.",
     "orderDate": "Order date",
     "orderNumber": "Order number",
     "orderStatus": "Order status",

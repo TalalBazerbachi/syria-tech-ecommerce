@@ -102,8 +102,9 @@ const ShippingAddress = ({
       />
 
       <div className="grid grid-cols-1 xsmall:grid-cols-2 gap-4 mt-4 mb-4">
+        {/* Optional: many cash-on-delivery customers have no email; the phone is the contact. */}
         <Input
-          label={t("email")}
+          label={t("emailOptional")}
           name="email"
           type="email"
           dir="ltr"
@@ -111,7 +112,6 @@ const ShippingAddress = ({
           autoComplete="email"
           value={formData.email}
           onChange={handleChange}
-          required
           data-testid="shipping-email-input"
         />
       </div>

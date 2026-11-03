@@ -18,7 +18,45 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Type errors and failing unit tests stop the release: `next build` itself ignores type
+  # errors (next.config.js), so this is the gate. No image is built or deployed when it fails.
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/backend/package-lock.json
+
+      - name: Backend - install
+        working-directory: apps/backend
+        run: npm ci
+
+      - name: Backend - typecheck
+        working-directory: apps/backend
+        run: npm run typecheck
+
+      - name: Backend - unit tests
+        working-directory: apps/backend
+        run: npm run test:unit
+
+      - uses: pnpm/action-setup@v4
+        with:
+          package_json_file: apps/storefront/package.json
+
+      - name: Storefront - install
+        working-directory: apps/storefront
+        run: pnpm install --frozen-lockfile
+
+      - name: Storefront - typecheck
+        working-directory: apps/storefront
+        run: pnpm typecheck
+
   build:
+    needs: check
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -68,6 +106,9 @@ jobs:
           platforms: linux/amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          # Storefront only: the media host turns on next/image resizing (apps/storefront/next.config.js).
+          # Repository variable MEDIA_HOSTNAME, e.g. media.example.com or **.example.com. Empty = off.
+          build-args: ${{ matrix.app == 'storefront' && format('NEXT_PUBLIC_MEDIA_HOSTNAME={0}', vars.MEDIA_HOSTNAME) || '' }}
           cache-from: type=gha,scope=${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=${{ matrix.app }}
           provenance: false

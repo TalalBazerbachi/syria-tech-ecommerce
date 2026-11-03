@@ -1,3 +1,4 @@
+import { formatSyrianPhone } from "@lib/util/phone"
 import { HttpTypes } from "@medusajs/types"
 import { Text } from "@modules/common/components/ui"
 import { useFormatter, useTranslations } from "next-intl"
@@ -10,6 +11,9 @@ type OrderDetailsProps = {
 const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
   const t = useTranslations("order")
   const format = useFormatter()
+  const phone = order.shipping_address?.phone
+    ? formatSyrianPhone(order.shipping_address.phone)
+    : null
 
   const statusLabel = (
     namespace: "fulfillmentStatus" | "paymentStatus",
@@ -24,20 +28,24 @@ const OrderDetails = ({ order, showStatus }: OrderDetailsProps) => {
 
   return (
     <div>
-      <Text>
-        {t.rich("confirmationSentTo", {
-          email: order.email ?? "",
-          strong: (chunks) => (
-            <span
-              className="text-ui-fg-medium-plus font-semibold"
-              dir="ltr"
-              data-testid="order-email"
-            >
-              {chunks}
-            </span>
-          ),
-        })}
-      </Text>
+      {/* Only on the thank-you page. No email is sent (no notification provider):
+          staff get a Telegram alert and confirm by phone. */}
+      {!showStatus && phone && (
+        <Text>
+          {t.rich("confirmationCall", {
+            phone,
+            strong: (chunks) => (
+              <span
+                className="text-ui-fg-medium-plus font-semibold"
+                dir="ltr"
+                data-testid="order-phone"
+              >
+                {chunks}
+              </span>
+            ),
+          })}
+        </Text>
+      )}
       <Text className="mt-2">
         {t("orderDate")}:{" "}
         <span data-testid="order-date">

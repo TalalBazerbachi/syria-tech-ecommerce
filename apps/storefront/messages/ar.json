@@ -22,7 +22,9 @@
     "poweredBy": "يعمل بواسطة",
     "guides": "الأدلة",
     "faq": "الأسئلة الشائعة",
-    "information": "معلومات"
+    "information": "معلومات",
+    "whatsapp": "واتساب",
+    "phone": "هاتف"
   },
   "home": {
     "metaTitle": "سيريا تك — لابتوبات وإكسسوارات وتجهيزات شبكات",
@@ -187,6 +189,7 @@
     "notes": "ملاحظات للتوصيل (اختياري)",
     "notesShort": "ملاحظات",
     "email": "البريد الإلكتروني",
+    "emailOptional": "البريد الإلكتروني (اختياري)",
     "emailHint": "أدخل بريداً إلكترونياً صحيحاً.",
     "useSavedAddress": "أهلاً {name}، هل تريد استخدام أحد عناوينك المحفوظة؟",
     "chooseAddress": "اختر عنواناً",
@@ -269,7 +272,7 @@
     "summary": "الملخص",
     "orderDetails": "تفاصيل الطلب",
     "backToOverview": "الرجوع إلى الطلبات",
-    "confirmationSentTo": "أرسلنا تأكيد الطلب إلى <strong>{email}</strong>.",
+    "confirmationCall": "سنتصل بك على الرقم <strong>{phone}</strong> لتأكيد طلبك قبل التوصيل.",
     "orderDate": "تاريخ الطلب",
     "orderNumber": "رقم الطلب",
     "orderStatus": "حالة الطلب",

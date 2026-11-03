@@ -1,6 +1,7 @@
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import ChevronDown from "@modules/common/icons/chevron-down"
 import MedusaCTA from "@modules/layout/components/medusa-cta"
+import StoreContact from "@modules/layout/components/store-contact"
 import { getTranslations } from "next-intl/server"
 
 export default async function CheckoutLayout({
@@ -39,7 +40,10 @@ export default async function CheckoutLayout({
         </nav>
       </div>
       <div className="relative" data-testid="checkout-container">{children}</div>
-      <div className="py-4 w-full flex items-center justify-center">
+      <div className="py-4 w-full flex flex-col gap-y-3 items-center justify-center">
+        <StoreContact
+          className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-ui-fg-subtle txt-compact-small"
+        />
         <MedusaCTA />
       </div>
     </div>

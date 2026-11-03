@@ -1,12 +1,12 @@
 ---
 title: Warranty
 description: Warranty terms for products sold by Syria Tech and how to make a claim.
-updated: 2026-10-20
+updated: 2026-11-03
 ---
 
 # Warranty
 
-Every product we sell is genuine and covered by a warranty. The length and type of warranty (distributor warranty or store warranty) are stated on each product page and on your invoice.
+Every product we sell is genuine and covered by a warranty. The length and type of warranty (distributor warranty or store warranty) are stated in each product's description and on your invoice.
 
 ## What the warranty covers
 

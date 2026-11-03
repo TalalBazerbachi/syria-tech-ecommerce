@@ -8,6 +8,7 @@ build/
 .strapi/
 .cache/
 .next/
+*.tsbuildinfo
 *.log
 .DS_Store
 infra/logs/

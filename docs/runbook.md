@@ -167,6 +167,19 @@ Set in GitHub -> Settings -> Environments -> `staging` and `production` (each it
 `build.yml` needs nothing but the default `GITHUB_TOKEN` (`packages: write`). Private GHCR packages
 also need a `docker login ghcr.io` on the server (read-only PAT), done once by hand.
 
+Its `check` job (backend typecheck + unit tests, storefront typecheck) must pass before any image
+is built, so a red check never reaches staging.
+
+Repository **variable** (Settings -> Secrets and variables -> Actions -> Variables), not a secret:
+
+| Variable | Purpose |
+| --- | --- |
+| `MEDIA_HOSTNAME` | `MEDIA_DOMAIN`, or a wildcard covering staging and production (`**.example.com`). Baked into the storefront image; turns on `next/image` resizing to WebP for product and article images. Empty = images are served at their uploaded size. |
+
+With it set, resized images come from `https://<store>/_next/image?...` (cached 31 days). A
+Cloudflare Cache Rule for the path `/_next/image` ("Eligible for cache", respect origin TTL) lets
+Cloudflare serve repeats instead of the VPS.
+
 ## 7. Day-2 operations
 
 - **Logs:** `docker compose -p syria-tech-ecommerce logs -f --tail 200 medusa-server` (or
@@ -178,9 +191,24 @@ also need a `docker login ghcr.io` on the server (read-only PAT), done once by h
 - **Memory:** `docker stats --no-stream`; the spike measured ~0.7 GiB for the backend stack
   without the storefront.
 - **Arabic shipping option names:** the seed stores `ar-SA` translations for shipping options
-  (`/admin/translations?reference=shipping_option`), but in Medusa 2.21.2 `/store/shipping-options`
-  does not apply `x-medusa-locale`; the storefront must read them from the admin translations or
-  keep a local map until Medusa localizes that route.
+  (`/admin/translations?reference=shipping_option`). Medusa translates the checkout options from
+  the cart's `locale` (set by the storefront, kept in step by the language switcher) and saves the
+  translated name on the order. A new shipping option needs its own `ar-SA` translation (admin, or
+  rerun the seed for launch zones), otherwise Arabic checkouts show its English name.
+- **New-order alerts (Telegram):** set `ORDER_ALERT_TELEGRAM_BOT_TOKEN` and
+  `ORDER_ALERT_TELEGRAM_CHAT_ID` in `.env` (how to get both: comments in `.env.example`), then
+  `docker compose up -d medusa-worker`. Each order posts number, total, payment method, name,
+  phone, governorate, address, landmark, notes, delivery option, items and an admin link to that
+  chat (`src/subscribers/order-alert-placed.ts`). Check with `docker compose logs medusa-worker |
+  grep order-alert`: `sent for <order>` or `failed for <order>: <Telegram's reason>`. A failed
+  alert never fails the order. Customers get no email or SMS; the thank-you page tells them the
+  store will call to confirm.
+- **Store phone / WhatsApp:** `STORE_WHATSAPP` and `STORE_PHONE` in `.env` show in the footer and
+  on checkout (the legal pages point there). `docker compose up -d storefront` after a change.
+- **Checkout email is optional:** the phone is the required contact. Orders without an email have
+  no customer record; staff find them by order number or phone.
+- **Warranty:** the warranty page says each product's warranty is in its description, so put the
+  length and type (distributor or store) in every product description.
 - **Disk:** `docker system df`; `docker image prune -f` after deploys (deploy.yml does this).
 
 ## 8. Strapi: the SEO CMS

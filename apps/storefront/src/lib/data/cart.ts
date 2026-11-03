@@ -321,12 +321,14 @@ export async function setAddresses(currentState: unknown, formData: FormData) {
       return t(parsed.error.code)
     }
 
+    // Email is optional (the phone is the contact for cash on delivery). An empty
+    // field is left out: Medusa rejects "" and an order needs no email.
     const email = String(formData.get("email") ?? "").trim()
 
     await updateCart({
       shipping_address: parsed.address,
       billing_address: parsed.address,
-      email,
+      ...(email ? { email } : {}),
     })
   } catch (e: unknown) {
     return e instanceof Error ? e.message : String(e)

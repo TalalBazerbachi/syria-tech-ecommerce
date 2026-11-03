@@ -8,6 +8,7 @@ import { getLocale, getTranslations } from "next-intl/server"
 import LocalizedClientLink from "@modules/common/components/localized-client-link"
 import LocaleSwitcher from "@modules/layout/components/locale-switcher"
 import MedusaCTA from "@modules/layout/components/medusa-cta"
+import StoreContact from "@modules/layout/components/store-contact"
 
 export default async function Footer() {
   const t = await getTranslations("common")
@@ -149,6 +150,7 @@ export default async function Footer() {
             </div>
             <div className="flex flex-col gap-y-2">
               <span className="txt-small-plus txt-ui-fg-base">{t("help")}</span>
+              <StoreContact className="grid grid-cols-1 gap-y-2 text-ui-fg-subtle txt-small" />
               <ul className="grid grid-cols-1 gap-y-2 text-ui-fg-subtle txt-small">
                 <li>
                   <LocalizedClientLink className="hover:text-ui-fg-base" href="/account">

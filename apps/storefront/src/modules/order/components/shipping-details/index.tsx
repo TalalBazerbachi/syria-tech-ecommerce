@@ -65,9 +65,11 @@ const ShippingDetails = ({ order }: ShippingDetailsProps) => {
           <Text className="txt-medium text-ui-fg-subtle" dir="ltr">
             {formatSyrianPhone(address?.phone)}
           </Text>
-          <Text className="txt-medium text-ui-fg-subtle" dir="ltr">
-            {order.email}
-          </Text>
+          {order.email && (
+            <Text className="txt-medium text-ui-fg-subtle" dir="ltr">
+              {order.email}
+            </Text>
+          )}
         </div>
 
         <div
